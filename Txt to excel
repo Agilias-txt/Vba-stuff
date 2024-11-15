@@ -1,0 +1,95 @@
+Sub ImportTxtFilesWithFormatting()
+    Dim FilePath As String, FileName As String
+    Dim Wb As Workbook
+    Dim Ws As Worksheet
+    Dim FoundColumn As Range
+    Dim LastRow As Long
+    Dim i As Long
+    Dim ColumnToChange As String
+    
+    ' Folder containing .txt files
+    FilePath = "C:\YourFolderPath\" ' Update with your folder path
+    FileName = Dir(FilePath & "*.txt")
+    
+    Application.ScreenUpdating = False
+    
+    Do While FileName <> ""
+        ' Open the .txt file as a workbook
+        Set Wb = Workbooks.Open(FilePath & FileName)
+        Set Ws = Wb.Sheets(1)
+        
+        ' Automatically find the column named "NRB" in the header row
+        Set FoundColumn = Ws.Rows(1).Find(What:="NRB", LookIn:=xlValues, LookAt:=xlWhole)
+        
+        If Not FoundColumn Is Nothing Then
+            ' Convert the column to Text format
+            ColumnToChange = FoundColumn.Address(False, False) ' Get the column letter
+            Ws.Columns(FoundColumn.Column).NumberFormat = "@"
+            
+            ' Replace commas with dots in the column
+            LastRow = Ws.Cells(Ws.Rows.Count, FoundColumn.Column).End(xlUp).Row
+            For i = 1 To LastRow
+                If Not IsEmpty(Ws.Cells(i, FoundColumn.Column).Value) Then
+                    Ws.Cells(i, FoundColumn.Column).Value = Replace(Ws.Cells(i, FoundColumn.Column).Value, ",", ".")
+                End If
+            Next i
+        End If
+        
+        ' Save the workbook as an Excel file
+        Wb.SaveAs Replace(FilePath & FileName, ".txt", ".xlsx"), FileFormat:=xlOpenXMLWorkbook
+        Wb.Close False
+        
+        FileName = Dir ' Process the next .txt file
+    Loop
+    
+    Application.ScreenUpdating = True
+    MsgBox "All .txt files have been imported and formatted."
+End Sub
+
+Sub FormatExcelFiles()
+    Dim FilePath As String, FileName As String
+    Dim Wb As Workbook
+    Dim Ws As Worksheet
+    
+    ' Folder containing Excel files
+    FilePath = "C:\YourFolderPath\" ' Update with your folder path
+    FileName = Dir(FilePath & "*.xlsx")
+    
+    Application.ScreenUpdating = False
+    
+    Do While FileName <> ""
+        ' Open the Excel file
+        Set Wb = Workbooks.Open(FilePath & FileName)
+        
+        ' Format all worksheets
+        For Each Ws In Wb.Sheets
+            ' Set font size to 8
+            Ws.Cells.Font.Size = 8
+            
+            ' Bold, wrap text, and freeze the first row
+            With Ws.Rows(1)
+                .Font.Bold = True
+                .WrapText = True
+            End With
+            
+            ' Freeze the first row
+            Ws.Application.ActiveWindow.FreezePanes = False
+            Ws.Rows(2).Select
+            Ws.Application.ActiveWindow.FreezePanes = True
+            
+            ' Rename the worksheet to "Arkusz1"
+            On Error Resume Next ' Handle duplicate name errors
+            Ws.Name = "Arkusz1"
+            On Error GoTo 0
+        Next Ws
+        
+        ' Save and close the workbook
+        Wb.Save
+        Wb.Close False
+        
+        FileName = Dir ' Process the next Excel file
+    Loop
+    
+    Application.ScreenUpdating = True
+    MsgBox "All Excel files have been formatted."
+End Sub

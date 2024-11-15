@@ -93,3 +93,76 @@ Sub FormatExcelFiles()
     Application.ScreenUpdating = True
     MsgBox "All Excel files have been formatted."
 End Sub
+Sub ImportTxtFilesWithFormatting()
+    Dim FilePath As String, FileName As String
+    Dim Wb As Workbook
+    Dim Ws As Worksheet
+    Dim FoundColumn As Range
+    Dim i As Integer
+    
+    ' Folder containing .txt files
+    FilePath = "C:\YourFolderPath\" ' Update with your folder path
+    If Right(FilePath, 1) <> "\" Then FilePath = FilePath & "\"
+    
+    FileName = Dir(FilePath & "*.txt")
+    
+    If FileName = "" Then
+        MsgBox "No .txt files found in the specified folder.", vbExclamation
+        Exit Sub
+    End If
+    
+    Application.ScreenUpdating = False
+    
+    Do While FileName <> ""
+        ' Open the .txt file as a workbook
+        Set Wb = Workbooks.Add
+        Set Ws = Wb.Sheets(1)
+        
+        ' Open the .txt file and import it with delimiters
+        With Ws.QueryTables.Add(Connection:="TEXT;" & FilePath & FileName, Destination:=Ws.Range("A1"))
+            .TextFileParseType = xlDelimited
+            .TextFileTextQualifier = xlTextQualifierDoubleQuote
+            .TextFileConsecutiveDelimiter = False
+            .TextFileTabDelimiter = True ' Change to match your file's delimiter
+            .TextFileCommaDelimiter = False
+            .TextFileSemicolonDelimiter = False
+            .TextFileSpaceDelimiter = False
+            .TextFileColumnDataTypes = GetColumnDataTypes(Ws, "NRB") ' Custom function to set NRB as text
+            .Refresh BackgroundQuery:=False
+        End With
+        
+        ' Save the workbook as an Excel file
+        Wb.SaveAs Replace(FilePath & FileName, ".txt", ".xlsx"), FileFormat:=xlOpenXMLWorkbook
+        Wb.Close False
+        
+        FileName = Dir ' Process the next .txt file
+    Loop
+    
+    Application.ScreenUpdating = True
+    MsgBox "All .txt files have been imported and formatted."
+End Sub
+
+Function GetColumnDataTypes(Ws As Worksheet, HeaderName As String) As Variant
+    Dim DataTypes() As Integer
+    Dim FoundColumn As Range
+    Dim HeaderCount As Integer
+    Dim i As Integer
+    
+    ' Detect number of columns in the first row
+    HeaderCount = Ws.Cells(1, Ws.Columns.Count).End(xlToLeft).Column
+    ReDim DataTypes(1 To HeaderCount)
+    
+    ' Default all columns to General
+    For i = 1 To HeaderCount
+        DataTypes(i) = xlGeneralFormat
+    Next i
+    
+    ' Check if the specified header exists
+    Set FoundColumn = Ws.Rows(1).Find(What:=HeaderName, LookIn:=xlValues, LookAt:=xlWhole)
+    If Not FoundColumn Is Nothing Then
+        DataTypes(FoundColumn.Column) = xlTextFormat ' Set NRB column as Text
+    End If
+    
+    GetColumnDataTypes = DataTypes
+End Function
+

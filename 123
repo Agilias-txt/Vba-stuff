@@ -1,0 +1,50 @@
+Sub ListFoldersInDirectory()
+    Dim objFSO As Object
+    Dim objFolder As Object
+    Dim objSubFolder As Object
+    Dim ws As Worksheet
+    Dim folderPath As String
+    Dim rowCounter As Integer
+    
+    ' Initialize FileSystemObject
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
+    
+    ' Prompt user to select a folder
+    With Application.FileDialog(msoFileDialogFolderPicker)
+        .Title = "Select a Folder"
+        .AllowMultiSelect = False
+        If .Show = -1 Then
+            folderPath = .SelectedItems(1)
+        Else
+            MsgBox "No folder selected. Exiting..."
+            Exit Sub
+        End If
+    End With
+    
+    ' Set the worksheet where the folder names will be listed
+    Set ws = ThisWorkbook.Sheets(1)
+    ws.Cells.Clear ' Clear the sheet before listing folders
+    ws.Cells(1, 1).Value = "Folder Names" ' Header
+    
+    ' Get the folder object
+    Set objFolder = objFSO.GetFolder(folderPath)
+    
+    ' Initialize row counter
+    rowCounter = 2
+    
+    ' Loop through each subfolder and list the names
+    For Each objSubFolder In objFolder.SubFolders
+        ws.Cells(rowCounter, 1).Value = objSubFolder.Name
+        rowCounter = rowCounter + 1
+    Next objSubFolder
+    
+    ' Autofit column for better visibility
+    ws.Columns("A").AutoFit
+    
+    ' Clean up
+    Set objFSO = Nothing
+    Set objFolder = Nothing
+    Set objSubFolder = Nothing
+    
+    MsgBox "Folder names have been listed in the worksheet."
+End Sub

@@ -1,61 +1,62 @@
-Sub CopyFoldersBasedOnExcelList()
-    Dim objFSO As Object
+Sub CopyFoldersFromColumnA()
+    Dim fso As Object
     Dim ws As Worksheet
     Dim sourcePath As String
-    Dim targetPath As String
-    Dim folderName As String
+    Dim destPath As String
+    Dim cell As Range
     Dim lastRow As Long
-    Dim i As Long
+    Dim successCount As Long
+    Dim errorCount As Long
+    Dim errorList As String
     
-    ' Initialize FileSystemObject
-    Set objFSO = CreateObject("Scripting.FileSystemObject")
+    ' Initialize variables
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set ws = ThisWorkbook.Sheets("Sheet1") ' Change sheet name if needed
+    successCount = 0
+    errorCount = 0
+    errorList = ""
     
-    ' Set the worksheet where folder names are listed
-    Set ws = ThisWorkbook.Sheets(1)
-    
-    ' Prompt user to select the source directory
+    ' Get destination folder from user
     With Application.FileDialog(msoFileDialogFolderPicker)
-        .Title = "Select Source Folder"
+        .Title = "Select Destination Folder"
         .AllowMultiSelect = False
-        If .Show = -1 Then
-            sourcePath = .SelectedItems(1)
-        Else
-            MsgBox "No source folder selected. Exiting..."
-            Exit Sub
-        End If
+        If .Show <> -1 Then Exit Sub ' User canceled
+        destPath = .SelectedItems(1)
     End With
     
-    ' Prompt user to select the target directory
-    With Application.FileDialog(msoFileDialogFolderPicker)
-        .Title = "Select Target Folder"
-        .AllowMultiSelect = False
-        If .Show = -1 Then
-            targetPath = .SelectedItems(1)
-        Else
-            MsgBox "No target folder selected. Exiting..."
-            Exit Sub
-        End If
-    End With
-    
-    ' Get the last row with data in column A (assuming folder names are in column A)
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-    
-    ' Loop through the folder names in column A
-    For i = 1 To lastRow
-        folderName = ws.Cells(i, 1).Value
+    ' Process each folder path in Column A
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    For Each cell In ws.Range("A1:A" & lastRow)
+        sourcePath = cell.Value
         
-        ' Check if the folder exists in the source directory
-        If objFSO.FolderExists(sourcePath & "\" & folderName) Then
-            ' Copy the folder to the target directory
-            objFSO.CopyFolder sourcePath & "\" & folderName, targetPath & "\" & folderName
-            ws.Cells(i, 2).Value = "Copied" ' Mark as copied in column B
-        Else
-            ws.Cells(i, 2).Value = "Not Found" ' Mark as not found in column B
+        ' Skip empty cells
+        If sourcePath = "" Then GoTo NextCell
+        
+        ' Check if source folder exists
+        If Not fso.FolderExists(sourcePath) Then
+            errorCount = errorCount + 1
+            errorList = errorList & vbCrLf & sourcePath & " (Source not found)"
+            GoTo NextCell
         End If
-    Next i
+        
+        ' Attempt to copy folder
+        On Error Resume Next
+        fso.CopyFolder sourcePath, destPath & "\" & fso.GetFolder(sourcePath).Name
+        If Err.Number <> 0 Then
+            errorCount = errorCount + 1
+            errorList = errorList & vbCrLf & sourcePath & " (" & Err.Description & ")"
+            Err.Clear
+        Else
+            successCount = successCount + 1
+        End If
+        On Error GoTo 0
+        
+NextCell:
+    Next cell
     
-    ' Clean up
-    Set objFSO = Nothing
-    
-    MsgBox "Folder copy process completed. Check column B for status."
+    ' Show results
+    MsgBox "Folders copied: " & successCount & vbCrLf & _
+           "Errors: " & errorCount & vbCrLf & _
+           "Error details:" & errorList, _
+           vbInformation, "Operation Complete"
 End Sub

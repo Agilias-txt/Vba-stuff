@@ -1,0 +1,58 @@
+Sub ExportOpenQueriesToExcel()
+    Dim AccessApp As Object      ' Access.Application (late binding)
+    Dim qry As Object            ' Query object
+    Dim qryName As String
+    Dim strPath As String
+    Dim strDate As String
+    Dim strFileName As String
+    Dim fso As Object            ' FileSystemObject
+    Dim isOpen As Integer        ' Stores SysCmd result
+    
+    ' Check if Access is open
+    On Error Resume Next
+    Set AccessApp = GetObject(, "Access.Application")
+    If AccessApp Is Nothing Then
+        MsgBox "Open MS Access first.", vbExclamation
+        Exit Sub
+    End If
+    On Error GoTo 0
+    
+    ' Set export folder (change as needed)
+    strPath = "C:\QueryExports\"
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(strPath) Then fso.CreateFolder strPath
+    
+    ' Date format: YYYYMMDD
+    strDate = Format(Date, "YYYYMMDD")
+    
+    ' Loop through all queries in Access
+    For Each qry In AccessApp.CurrentData.AllQueries
+        qryName = qry.Name
+        ' Check if the query is open (1 = acQuery)
+        isOpen = AccessApp.SysCmd(9, 1, qryName)
+        
+        ' If open, export to Excel
+        If isOpen = 1 Then
+            strFileName = strPath & qryName & "_" & strDate & ".xlsx"
+            
+            On Error Resume Next
+            AccessApp.DoCmd.TransferSpreadsheet _
+                1,          ' TransferType: acExport
+                10,         ' SpreadsheetType: .xlsx
+                qryName,    ' Query name
+                strFileName ' FileName
+            If Err.Number <> 0 Then
+                MsgBox "Failed to export '" & qryName & "': " & Err.Description, vbCritical
+                Err.Clear
+            End If
+            On Error GoTo 0
+        End If
+    Next qry
+    
+    MsgBox "Open queries exported to " & strPath, vbInformation
+    
+    ' Cleanup
+    Set fso = Nothing
+    Set qry = Nothing
+    Set AccessApp = Nothing
+End Sub

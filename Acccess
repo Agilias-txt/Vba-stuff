@@ -1,0 +1,55 @@
+Sub ExportActiveAccessTablesToExcel()
+    Dim AccessApp As Object  ' Late-bound Access.Application
+    Dim obj As Object        ' Generic object for iteration
+    Dim tblName As String
+    Dim strPath As String
+    Dim strDate As String
+    Dim strFileName As String
+    Dim fso As Object
+    
+    ' Check if Access is open
+    On Error Resume Next
+    Set AccessApp = GetObject(, "Access.Application")
+    If AccessApp Is Nothing Then
+        MsgBox "Open MS Access first.", vbExclamation
+        Exit Sub
+    End If
+    On Error GoTo 0
+    
+    ' Set export folder (change as needed)
+    strPath = "C:\AccessExports\"
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(strPath) Then fso.CreateFolder strPath
+    
+    ' Date format: YYYYMMDD
+    strDate = Format(Date, "YYYYMMDD")
+    
+    ' Loop through all open objects in Access
+    For Each obj In AccessApp.CurrentProject.AllForms
+        ' Check if the form is a table in Datasheet View
+        If AccessApp.Forms(obj.Name).CurrentView = 2 Then  ' 2 = Datasheet View
+            tblName = Split(obj.Name, "_")(1)  ' Adjust parsing based on your table names
+            strFileName = strPath & tblName & "_" & strDate & ".xlsx"
+            
+            ' Export using positional arguments
+            On Error Resume Next
+            AccessApp.DoCmd.TransferSpreadsheet _
+                1,          ' acExport
+                10,         ' acSpreadsheetTypeExcel12Xml (.xlsx)
+                tblName,    ' TableName
+                strFileName ' FileName
+            If Err.Number <> 0 Then
+                MsgBox "Failed to export '" & tblName & "': " & Err.Description, vbCritical
+                Err.Clear
+            End If
+            On Error GoTo 0
+        End If
+    Next obj
+    
+    MsgBox "Active tables exported to " & strPath, vbInformation
+    
+    ' Cleanup
+    Set fso = Nothing
+    Set obj = Nothing
+    Set AccessApp = Nothing
+End Sub

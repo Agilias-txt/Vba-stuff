@@ -1,0 +1,59 @@
+Sub ExportActiveAccessTablesToExcel()
+    Dim AccessApp As Object  ' Late-bound Access.Application
+    Dim tbl As Object        ' Table object
+    Dim tblName As String
+    Dim strPath As String
+    Dim strDate As String
+    Dim strFileName As String
+    Dim fso As Object
+    Dim isOpen As Integer    ' Stores SysCmd result
+    
+    ' Check if Access is open
+    On Error Resume Next
+    Set AccessApp = GetObject(, "Access.Application")
+    If AccessApp Is Nothing Then
+        MsgBox "Open MS Access first.", vbExclamation
+        Exit Sub
+    End If
+    On Error GoTo 0
+    
+    ' Set export folder (change as needed)
+    strPath = "C:\AccessExports\"
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(strPath) Then fso.CreateFolder strPath
+    
+    ' Date format: YYYYMMDD
+    strDate = Format(Date, "YYYYMMDD")
+    
+    ' Loop through all tables in Access
+    For Each tbl In AccessApp.CurrentData.AllTables
+        tblName = tbl.Name
+        ' Check if the table is open using SysCmd
+        ' SysCmd(9, 0, tblName) = Check if table is open (9 = acSysCmdGetObjectState, 0 = acTable)
+        isOpen = AccessApp.SysCmd(9, 0, tblName)
+        
+        ' If open (1 = acObjStateOpen), export it
+        If isOpen = 1 Then
+            strFileName = strPath & tblName & "_" & strDate & ".xlsx"
+            
+            On Error Resume Next
+            AccessApp.DoCmd.TransferSpreadsheet _
+                1,          ' TransferType: acExport
+                10,         ' SpreadsheetType: .xlsx
+                tblName,    ' TableName
+                strFileName ' FileName
+            If Err.Number <> 0 Then
+                MsgBox "Failed to export '" & tblName & "': " & Err.Description, vbCritical
+                Err.Clear
+            End If
+            On Error GoTo 0
+        End If
+    Next tbl
+    
+    MsgBox "Active tables exported to " & strPath, vbInformation
+    
+    ' Cleanup
+    Set fso = Nothing
+    Set tbl = Nothing
+    Set AccessApp = Nothing
+End Sub
